@@ -36,6 +36,20 @@ changelog:
       - "^test:"
       - "^ci:"
 
+brews:
+  - repository:
+      owner: null3000
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://null3000.github.io/cws-cli/"
+    description: "A CLI for managing Chrome Web Store extensions"
+    license: "MIT"
+    install: |
+      bin.install "cws"
+    test: |
+      system "#{bin}/cws", "version"
+
 release:
   github:
     owner: null3000
