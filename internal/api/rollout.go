@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // SetDeployPercentage sets the deploy percentage for a published extension.
@@ -21,17 +22,29 @@ func (c *Client) SetDeployPercentage(ctx context.Context, extensionID string, pe
 
 	var resp DeployPercentageResponse
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, fmt.Errorf("failed to parse rollout response (HTTP %d): %s", statusCode, string(respBody))
+		return nil, fmt.Errorf("failed to parse rollout response (HTTP %d): %s", statusCode, truncateBody(respBody, 200))
 	}
 
 	if statusCode < 200 || statusCode >= 300 {
-		errMsg := fmt.Sprintf("rollout failed (HTTP %d)", statusCode)
-		if resp.Status != "" {
-			errMsg += ": " + resp.Status
-		} else if detail := ParseAPIError(respBody); detail != "" {
-			errMsg += ": " + detail
+		cwsErr := &CWSError{
+			Operation:  "rollout",
+			HTTPStatus: statusCode,
 		}
-		return &resp, fmt.Errorf("%s", errMsg)
+		if resp.Status != "" {
+			cwsErr.Message = resp.Status
+		} else if detail := ParseAPIError(respBody); detail != "" {
+			cwsErr.Message = detail
+		}
+
+		// Add rollout-specific hint for the common "does not meet requirements" error
+		if strings.Contains(strings.ToLower(cwsErr.Message), "does not meet requirements") ||
+			strings.Contains(strings.ToLower(cwsErr.Message), "not eligible") {
+			cwsErr.Hint = "Partial rollouts require your extension to have at least 10,000 weekly active users."
+		} else {
+			cwsErr.Hint = ResolveHint("", statusCode, cwsErr.Message)
+		}
+
+		return &resp, cwsErr
 	}
 
 	return &resp, nil

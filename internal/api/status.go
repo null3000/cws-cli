@@ -16,24 +16,39 @@ func (c *Client) FetchStatus(ctx context.Context, extensionID string) (*StatusRe
 	}
 
 	if statusCode == 404 {
-		return nil, nil, fmt.Errorf("extension not found. Verify the extension ID: %s", extensionID)
+		return nil, nil, &CWSError{
+			Operation:  "status check",
+			HTTPStatus: 404,
+			Message:    fmt.Sprintf("extension not found. Verify the extension ID: %s", extensionID),
+			Hint:       "Double-check the extension ID in your cws.toml or --extension-id flag.",
+		}
 	}
 
 	var resp StatusResponse
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, nil, fmt.Errorf("failed to parse status response (HTTP %d): %s", statusCode, string(respBody))
+		return nil, nil, fmt.Errorf("failed to parse status response (HTTP %d): %s", statusCode, truncateBody(respBody, 200))
 	}
 
 	if statusCode < 200 || statusCode >= 300 {
-		errMsg := fmt.Sprintf("status check failed (HTTP %d)", statusCode)
 		if len(resp.ItemError) > 0 {
-			errMsg += ": " + resp.ItemError[0].ErrorDetail
-		} else if detail := ParseAPIError(respBody); detail != "" {
-			errMsg += ": " + detail
-		} else {
-			errMsg += ": " + string(respBody)
+			return &resp, respBody, NewCWSError("status check", statusCode, resp.ItemError, "")
 		}
-		return &resp, respBody, fmt.Errorf("%s", errMsg)
+		parsed := ParseAPIErrorDetail(respBody)
+		if parsed != nil {
+			cwsErr := &CWSError{
+				Operation:  "status check",
+				HTTPStatus: statusCode,
+				Message:    parsed.Description,
+				Hint:       ResolveHint("", statusCode, parsed.Description),
+			}
+			return &resp, respBody, cwsErr
+		}
+		return &resp, respBody, &CWSError{
+			Operation:  "status check",
+			HTTPStatus: statusCode,
+			Message:    string(respBody),
+			Hint:       HintForHTTPStatus(statusCode),
+		}
 	}
 
 	return &resp, respBody, nil

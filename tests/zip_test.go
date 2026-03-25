@@ -184,6 +184,45 @@ func TestContainsManifestInZip_Absent(t *testing.T) {
 	}
 }
 
+func TestZipDirectory_SkipsSymlinks(t *testing.T) {
+	dir := t.TempDir()
+	createFile(t, filepath.Join(dir, "manifest.json"), `{}`)
+	createFile(t, filepath.Join(dir, "real.js"), "console.log('real')")
+
+	// Create a symlink pointing outside the directory
+	symlinkPath := filepath.Join(dir, "sneaky_link")
+	target := filepath.Join(os.TempDir(), "symlink_target_test.txt")
+	os.WriteFile(target, []byte("secret data"), 0644)
+	defer os.Remove(target)
+
+	err := os.Symlink(target, symlinkPath)
+	if err != nil {
+		t.Skip("symlinks not supported on this platform")
+	}
+
+	data, err := cwszip.ZipDirectory(dir)
+	if err != nil {
+		t.Fatalf("ZipDirectory error: %v", err)
+	}
+
+	names := zipEntryNames(t, data)
+	for _, name := range names {
+		if name == "sneaky_link" {
+			t.Error("zip should not contain symlinked file")
+		}
+	}
+	// Should still contain real files
+	found := false
+	for _, name := range names {
+		if name == "real.js" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("zip should contain real.js")
+	}
+}
+
 func TestShouldExclude(t *testing.T) {
 	tests := []struct {
 		path  string

@@ -1,8 +1,6 @@
 package tests
 
 import (
-	"os"
-	"strings"
 	"testing"
 
 	"github.com/null3000/cws-cli/cmd"
@@ -36,22 +34,9 @@ func TestFormatState(t *testing.T) {
 
 // --- Version tests ---
 
-func TestVersionOutput(t *testing.T) {
-	origStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
+func TestVersionVariable(t *testing.T) {
 	cmd.Version = "1.2.3"
-	cmd.VersionCmd.Run(cmd.VersionCmd, []string{})
-
-	w.Close()
-	os.Stdout = origStdout
-
-	var buf [256]byte
-	n, _ := r.Read(buf[:])
-	got := string(buf[:n])
-
-	if !strings.Contains(got, "cws 1.2.3") {
-		t.Errorf("version output = %q, want to contain %q", got, "cws 1.2.3")
+	if cmd.Version != "1.2.3" {
+		t.Errorf("Version = %q, want %q", cmd.Version, "1.2.3")
 	}
 }

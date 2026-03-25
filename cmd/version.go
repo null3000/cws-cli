@@ -9,8 +9,8 @@ import (
 // Version is set at build time via ldflags.
 var Version = "dev"
 
-// VersionCmd is the version subcommand.
-var VersionCmd = &cobra.Command{
+// versionCmd is the version subcommand.
+var versionCmd = &cobra.Command{
 	Use:     "version",
 	Aliases: []string{"v"},
 	Short:   "Print the CLI version",
@@ -20,7 +20,7 @@ var VersionCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(VersionCmd)
+	rootCmd.AddCommand(versionCmd)
 	rootCmd.Version = Version
 	rootCmd.SetVersionTemplate("cws {{.Version}}\n")
 }

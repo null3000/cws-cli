@@ -24,6 +24,11 @@ func Error(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "Error: "+format+"\n", args...)
 }
 
+// Hint prints an actionable hint to stderr, indented under the preceding error.
+func Hint(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "  Hint: "+format+"\n", args...)
+}
+
 // Progress prints a progress message only if stdout is a TTY.
 func Progress(format string, args ...any) {
 	if IsTTY() {

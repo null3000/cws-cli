@@ -43,8 +43,13 @@ func GlobalConfigDir() string {
 }
 
 // GlobalConfigPath returns the path to the global config file.
-func GlobalConfigPath() string {
-	return filepath.Join(GlobalConfigDir(), "cws.toml")
+// Returns an error if the home directory cannot be determined.
+func GlobalConfigPath() (string, error) {
+	dir := GlobalConfigDir()
+	if dir == "" {
+		return "", fmt.Errorf("could not determine home directory for global config")
+	}
+	return filepath.Join(dir, "cws.toml"), nil
 }
 
 // Load reads configuration from config files and environment variables.
@@ -83,13 +88,6 @@ func Load() (*Config, error) {
 			v.Set(key, localV.Get(key))
 		}
 	}
-
-	// Re-apply env vars (highest priority)
-	_ = v.BindEnv("auth.client_id", "CWS_CLIENT_ID")
-	_ = v.BindEnv("auth.client_secret", "CWS_CLIENT_SECRET")
-	_ = v.BindEnv("auth.refresh_token", "CWS_REFRESH_TOKEN")
-	_ = v.BindEnv("publisher_id", "CWS_PUBLISHER_ID")
-	_ = v.BindEnv("extensions.default.id", "CWS_EXTENSION_ID")
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {

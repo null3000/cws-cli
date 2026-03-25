@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // Publish publishes the most recently uploaded version.
@@ -22,20 +23,37 @@ func (c *Client) Publish(ctx context.Context, extensionID string, staged bool) (
 
 	var resp PublishResponse
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, fmt.Errorf("failed to parse publish response (HTTP %d): %s", statusCode, string(respBody))
+		return nil, fmt.Errorf("failed to parse publish response (HTTP %d): %s", statusCode, truncateBody(respBody, 200))
 	}
 
 	if statusCode < 200 || statusCode >= 300 {
-		errMsg := fmt.Sprintf("publish failed (HTTP %d)", statusCode)
+		cwsErr := &CWSError{
+			Operation:  "publish",
+			HTTPStatus: statusCode,
+		}
+
+		// Build the message from available fields
 		if resp.StatusCode != "" {
-			errMsg += ": " + resp.StatusCode
-		} else if detail := ParseAPIError(respBody); detail != "" {
-			errMsg += ": " + detail
+			cwsErr.Code = resp.StatusCode
+			cwsErr.Hint = HintForPublishStatus(resp.StatusCode)
 		}
 		if len(resp.Status) > 0 {
-			errMsg += " — " + resp.Status[0]
+			cwsErr.Message = strings.Join(resp.Status, ", ")
 		}
-		return &resp, fmt.Errorf("%s", errMsg)
+
+		// Fall back to parsing the API error body
+		if cwsErr.Message == "" {
+			if detail := ParseAPIError(respBody); detail != "" {
+				cwsErr.Message = detail
+			}
+		}
+
+		// Resolve hint if not already set from publish status code
+		if cwsErr.Hint == "" {
+			cwsErr.Hint = ResolveHint("", statusCode, cwsErr.Message)
+		}
+
+		return &resp, cwsErr
 	}
 
 	return &resp, nil

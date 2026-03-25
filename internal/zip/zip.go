@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,6 +37,7 @@ var defaultExtExclusions = []string{
 }
 
 // ZipDirectory creates a zip archive from a directory, excluding default patterns.
+// Symlinks are skipped to prevent directory traversal.
 func ZipDirectory(dir string) ([]byte, error) {
 	var buf bytes.Buffer
 	w := zip.NewWriter(&buf)
@@ -45,9 +47,14 @@ func ZipDirectory(dir string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to resolve directory path: %w", err)
 	}
 
-	err = filepath.Walk(absDir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.WalkDir(absDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+
+		// Skip symlinks to prevent directory traversal
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
 		}
 
 		relPath, err := filepath.Rel(absDir, path)
@@ -61,15 +68,20 @@ func ZipDirectory(dir string) ([]byte, error) {
 		}
 
 		// Check exclusions
-		if ShouldExclude(relPath, info.IsDir()) {
-			if info.IsDir() {
+		if ShouldExclude(relPath, d.IsDir()) {
+			if d.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		if info.IsDir() {
+		if d.IsDir() {
 			return nil
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return fmt.Errorf("failed to stat %s: %w", relPath, err)
 		}
 
 		// Use forward slashes in zip entries
@@ -122,7 +134,7 @@ func ContainsManifestInZip(data []byte) (bool, error) {
 	}
 
 	for _, f := range reader.File {
-		if f.Name == "manifest.json" || strings.HasSuffix(f.Name, "/manifest.json") {
+		if f.Name == "manifest.json" {
 			return true, nil
 		}
 	}
@@ -131,23 +143,18 @@ func ContainsManifestInZip(data []byte) (bool, error) {
 
 // ShouldExclude checks if a file or directory should be excluded from the zip.
 func ShouldExclude(relPath string, isDir bool) bool {
-	base := filepath.Base(relPath)
 	parts := strings.Split(filepath.ToSlash(relPath), "/")
 
 	for _, excl := range defaultExclusions {
-		// Check each path component
 		for _, part := range parts {
 			if part == excl {
 				return true
 			}
 		}
-		if base == excl {
-			return true
-		}
 	}
 
 	if !isDir {
-		ext := filepath.Ext(base)
+		ext := filepath.Ext(filepath.Base(relPath))
 		for _, exclExt := range defaultExtExclusions {
 			if ext == exclExt {
 				return true

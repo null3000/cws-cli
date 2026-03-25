@@ -17,17 +17,20 @@ func (c *Client) CancelSubmission(ctx context.Context, extensionID string) (*Can
 
 	var resp CancelResponse
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, fmt.Errorf("failed to parse cancel response (HTTP %d): %s", statusCode, string(respBody))
+		return nil, fmt.Errorf("failed to parse cancel response (HTTP %d): %s", statusCode, truncateBody(respBody, 200))
 	}
 
 	if statusCode < 200 || statusCode >= 300 {
-		errMsg := fmt.Sprintf("cancel failed (HTTP %d)", statusCode)
-		if detail := ParseAPIError(respBody); detail != "" {
-			errMsg += ": " + detail
-		} else {
-			errMsg += ": no pending submission to cancel for this extension"
+		msg := ParseAPIError(respBody)
+		if msg == "" {
+			msg = "no pending submission to cancel for this extension"
 		}
-		return &resp, fmt.Errorf("%s", errMsg)
+		return &resp, &CWSError{
+			Operation:  "cancel",
+			HTTPStatus: statusCode,
+			Message:    msg,
+			Hint:       ResolveHint("", statusCode, msg),
+		}
 	}
 
 	return &resp, nil

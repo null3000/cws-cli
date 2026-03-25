@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/null3000/cws-cli/internal/auth"
 )
@@ -31,7 +32,9 @@ func (c *Client) baseURL() string {
 // NewClient creates a new API client.
 func NewClient(authenticator auth.Authenticator, publisherID string) *Client {
 	return &Client{
-		httpClient:  &http.Client{},
+		httpClient: &http.Client{
+			Timeout: 5 * time.Minute,
+		},
 		auth:        authenticator,
 		publisherID: publisherID,
 	}
@@ -82,23 +85,64 @@ func (c *Client) doJSON(ctx context.Context, method, path string, reqBody any) (
 	return c.doRequest(ctx, method, path, body, contentType)
 }
 
-// ParseAPIError attempts to extract a human-readable error from a Google API error response.
-// Returns an empty string if the body is not a recognized error format.
-func ParseAPIError(body []byte) string {
+// ParsedAPIError holds structured information extracted from a Google API error response.
+type ParsedAPIError struct {
+	Message     string   // top-level error message
+	StatusCode  int      // HTTP-like code from the error body
+	Status      string   // status string (e.g., "INVALID_ARGUMENT")
+	Reasons     []string // reason codes from field violations (e.g., "PKG_INVALID_VERSION_NUMBER")
+	Description string   // most specific description found
+}
+
+// ParseAPIErrorDetail extracts structured error information from a Google API error response.
+// Returns nil if the body is not a recognized error format.
+func ParseAPIErrorDetail(body []byte) *ParsedAPIError {
 	var apiErr APIError
 	if err := json.Unmarshal(body, &apiErr); err != nil || apiErr.Error == nil {
-		return ""
+		return nil
 	}
 
-	msg := apiErr.Error.Message
+	parsed := &ParsedAPIError{
+		Message:    apiErr.Error.Message,
+		StatusCode: apiErr.Error.Code,
+		Status:     apiErr.Error.Status,
+	}
+
 	for _, d := range apiErr.Error.Details {
 		for _, v := range d.FieldViolations {
+			if v.Reason != "" {
+				parsed.Reasons = append(parsed.Reasons, v.Reason)
+			}
 			if v.Description != "" {
-				msg = v.Description
+				parsed.Description = v.Description
 			}
 		}
 	}
-	return msg
+
+	if parsed.Description == "" {
+		parsed.Description = parsed.Message
+	}
+
+	return parsed
+}
+
+// ParseAPIError attempts to extract a human-readable error from a Google API error response.
+// Returns an empty string if the body is not a recognized error format.
+func ParseAPIError(body []byte) string {
+	parsed := ParseAPIErrorDetail(body)
+	if parsed == nil {
+		return ""
+	}
+	return parsed.Description
+}
+
+// truncateBody returns the response body as a string, truncated to maxLen characters.
+func truncateBody(body []byte, maxLen int) string {
+	s := string(body)
+	if len(s) > maxLen {
+		return s[:maxLen] + "..."
+	}
+	return s
 }
 
 func (c *Client) itemPath(extensionID, action string) string {

@@ -17,19 +17,35 @@ func (c *Client) Upload(ctx context.Context, extensionID string, zipData []byte)
 
 	var resp UploadResponse
 	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return nil, fmt.Errorf("failed to parse upload response (HTTP %d): %s", statusCode, string(respBody))
+		return nil, fmt.Errorf("failed to parse upload response (HTTP %d): %s", statusCode, truncateBody(respBody, 200))
 	}
 
 	if statusCode < 200 || statusCode >= 300 {
-		errMsg := fmt.Sprintf("upload failed (HTTP %d)", statusCode)
 		if len(resp.ItemError) > 0 {
-			errMsg += ": " + resp.ItemError[0].ErrorDetail
-		} else if detail := ParseAPIError(respBody); detail != "" {
-			errMsg += ": " + detail
-		} else {
-			errMsg += ": " + string(respBody)
+			return &resp, NewCWSError("upload", statusCode, resp.ItemError, "")
 		}
-		return &resp, fmt.Errorf("%s", errMsg)
+		parsed := ParseAPIErrorDetail(respBody)
+		if parsed != nil {
+			// Use reason codes from field violations as item error codes for hint resolution
+			cwsErr := &CWSError{
+				Operation:  "upload",
+				HTTPStatus: statusCode,
+				Message:    parsed.Description,
+			}
+			if len(parsed.Reasons) > 0 {
+				cwsErr.Code = parsed.Reasons[0]
+				cwsErr.Hint = ResolveHint(parsed.Reasons[0], statusCode, parsed.Description)
+			} else {
+				cwsErr.Hint = ResolveHint("", statusCode, parsed.Description)
+			}
+			return &resp, cwsErr
+		}
+		return &resp, &CWSError{
+			Operation:  "upload",
+			HTTPStatus: statusCode,
+			Message:    string(respBody),
+			Hint:       HintForHTTPStatus(statusCode),
+		}
 	}
 
 	return &resp, nil

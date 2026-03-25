@@ -105,7 +105,7 @@
         <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">API Version</div>
       </div>
       <div>
-        <div class="text-2xl font-bold">7</div>
+        <div class="text-2xl font-bold">8</div>
         <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Commands</div>
       </div>
       <div>
@@ -244,7 +244,8 @@
         </thead>
         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
           <tr><td class="px-4 py-3 font-mono text-xs"><code>cws init</code></td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Interactive credential setup wizard</td></tr>
-          <tr><td class="px-4 py-3 font-mono text-xs"><code>cws upload [source]</code></td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Zip and upload a package</td></tr>
+          <tr><td class="px-4 py-3 font-mono text-xs"><code>cws validate [source]</code></td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Pre-flight validation (manifest, version, size)</td></tr>
+          <tr><td class="px-4 py-3 font-mono text-xs"><code>cws upload [source]</code></td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Validate, zip, and upload a package</td></tr>
           <tr><td class="px-4 py-3 font-mono text-xs"><code>cws publish</code></td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Publish the latest uploaded version</td></tr>
           <tr><td class="px-4 py-3 font-mono text-xs"><code>cws status</code></td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Check extension status</td></tr>
           <tr><td class="px-4 py-3 font-mono text-xs"><code>cws rollout &lt;pct&gt;</code></td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Set deploy percentage (10k+ users required)</td></tr>
@@ -256,6 +257,24 @@
 
     <!-- Command details -->
     <div class="mt-10 space-y-8">
+
+      <details class="group rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <summary class="cursor-pointer px-5 py-4 flex items-center justify-between font-semibold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition rounded-lg">
+          <span>cws validate</span>
+          <svg class="w-4 h-4 text-zinc-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="px-5 pb-5">
+          <pre class="bg-zinc-900 dark:bg-zinc-800 text-zinc-100 rounded-lg p-4 text-sm font-mono overflow-x-auto"><code><span class="text-zinc-500"># Full validation (local + remote checks)</span>
+cws validate ./dist
+
+<span class="text-zinc-500"># Local checks only (no credentials needed)</span>
+cws validate ./dist --local
+
+<span class="text-zinc-500"># Validate a pre-built zip</span>
+cws validate extension.zip</code></pre>
+          <p class="mt-3 text-xs text-zinc-500 dark:text-zinc-400">Checks: manifest.json validity, required fields, version format, package size, version &gt; published, no pending submission. Also runs automatically before every <code>cws upload</code>.</p>
+        </div>
+      </details>
 
       <details class="group rounded-lg border border-zinc-200 dark:border-zinc-800">
         <summary class="cursor-pointer px-5 py-4 flex items-center justify-between font-semibold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition rounded-lg">
@@ -276,7 +295,10 @@ cws upload ./dist --publish
 cws upload ./dist -e abcdefghijklmnopabcdefghijklmnop
 
 <span class="text-zinc-500"># Don't wait for processing</span>
-cws upload ./dist --wait=false</code></pre>
+cws upload ./dist --wait=false
+
+<span class="text-zinc-500"># Skip pre-upload validation</span>
+cws upload ./dist --skip-validate</code></pre>
         </div>
       </details>
 
@@ -322,6 +344,35 @@ cws rollout 100</code></pre>
         </div>
       </details>
 
+      <details class="group rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <summary class="cursor-pointer px-5 py-4 flex items-center justify-between font-semibold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition rounded-lg">
+          <span>cws cancel</span>
+          <svg class="w-4 h-4 text-zinc-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="px-5 pb-5">
+          <pre class="bg-zinc-900 dark:bg-zinc-800 text-zinc-100 rounded-lg p-4 text-sm font-mono overflow-x-auto"><code><span class="text-zinc-500"># Cancel a pending submission under review</span>
+cws cancel
+
+<span class="text-zinc-500"># Cancel for a specific extension</span>
+cws cancel -e abcdefghijklmnopabcdefghijklmnop</code></pre>
+        </div>
+      </details>
+
+      <details class="group rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <summary class="cursor-pointer px-5 py-4 flex items-center justify-between font-semibold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition rounded-lg">
+          <span>cws init</span>
+          <svg class="w-4 h-4 text-zinc-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="px-5 pb-5">
+          <pre class="bg-zinc-900 dark:bg-zinc-800 text-zinc-100 rounded-lg p-4 text-sm font-mono overflow-x-auto"><code><span class="text-zinc-500"># Set up credentials in current directory</span>
+cws init
+
+<span class="text-zinc-500"># Save credentials globally (~/.config/cws/cws.toml)</span>
+cws init --global</code></pre>
+          <p class="mt-3 text-xs text-zinc-500 dark:text-zinc-400">Interactive wizard that guides you through configuring OAuth2 Client ID, Client Secret, Refresh Token, and Publisher ID. Validates credentials before saving.</p>
+        </div>
+      </details>
+
     </div>
 
     <!-- Exit codes -->
@@ -335,8 +386,7 @@ cws rollout 100</code></pre>
         </thead>
         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
           <tr><td class="px-4 py-3 font-mono text-xs">0</td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Success</td></tr>
-          <tr><td class="px-4 py-3 font-mono text-xs">1</td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Error (API error, invalid config, etc.)</td></tr>
-          <tr><td class="px-4 py-3 font-mono text-xs">2</td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Timeout waiting for upload processing</td></tr>
+          <tr><td class="px-4 py-3 font-mono text-xs">1</td><td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Error (API error, validation failure, invalid config, timeout, etc.)</td></tr>
         </tbody>
       </table>
     </div>
@@ -461,13 +511,18 @@ source = "./dist"</code></pre>
             </tr>
             <tr>
               <td class="px-4 py-3 font-semibold">Commands</td>
-              <td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">upload, publish, status, rollout, cancel</td>
+              <td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">validate, upload, publish, status, rollout, cancel</td>
               <td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">upload, publish</td>
             </tr>
             <tr>
               <td class="px-4 py-3 font-semibold">Config</td>
               <td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">TOML + env vars + CLI flags</td>
               <td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Env vars only</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3 font-semibold">Pre-upload validation</td>
+              <td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">Built-in — manifest, version, size checks before upload</td>
+              <td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">None</td>
             </tr>
             <tr>
               <td class="px-4 py-3 font-semibold">CI/CD</td>

@@ -111,7 +111,11 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	var configPath string
 	if global {
-		configPath = config.GlobalConfigPath()
+		var err error
+		configPath, err = config.GlobalConfigPath()
+		if err != nil {
+			return err
+		}
 	} else {
 		configPath = "cws.toml"
 	}

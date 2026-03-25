@@ -159,8 +159,8 @@ func TestFetchStatus_404(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if got := err.Error(); got != "extension not found. Verify the extension ID: badext" {
-		t.Errorf("error = %q, want extension not found message", got)
+	if got := err.Error(); got != "status check failed (HTTP 404): extension not found. Verify the extension ID: badext" {
+		t.Errorf("error = %q, want status check failed with extension not found message", got)
 	}
 }
 

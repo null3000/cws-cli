@@ -17,7 +17,8 @@ type Authenticator interface {
 
 // OAuthAuthenticator refreshes access tokens using OAuth2 credentials.
 type OAuthAuthenticator struct {
-	tokenSource oauth2.TokenSource
+	config *oauth2.Config
+	token  *oauth2.Token
 }
 
 // NewOAuthAuthenticator creates an authenticator from client credentials and a refresh token.
@@ -34,13 +35,15 @@ func NewOAuthAuthenticator(clientID, clientSecret, refreshToken string) *OAuthAu
 	}
 
 	return &OAuthAuthenticator{
-		tokenSource: cfg.TokenSource(context.Background(), token),
+		config: cfg,
+		token:  token,
 	}
 }
 
 // AccessToken returns a valid access token, refreshing if necessary.
 func (a *OAuthAuthenticator) AccessToken(ctx context.Context) (string, error) {
-	token, err := a.tokenSource.Token()
+	src := a.config.TokenSource(ctx, a.token)
+	token, err := src.Token()
 	if err != nil {
 		return "", fmt.Errorf("authentication failed: %w. Run 'cws init' to reconfigure credentials", err)
 	}

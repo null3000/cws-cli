@@ -32,6 +32,7 @@ func init() {
 	uploadCmd.Flags().Bool("wait", true, "Wait for upload processing to complete")
 	uploadCmd.Flags().Int("timeout", 300, "Max seconds to wait for upload processing")
 	uploadCmd.Flags().Bool("publish", false, "Automatically publish after successful upload")
+	uploadCmd.Flags().Bool("skip-validate", false, "Skip pre-upload validation checks")
 	rootCmd.AddCommand(uploadCmd)
 }
 
@@ -53,6 +54,7 @@ func runUpload(cmd *cobra.Command, args []string) error {
 	wait, _ := cmd.Flags().GetBool("wait")
 	timeout, _ := cmd.Flags().GetInt("timeout")
 	publish, _ := cmd.Flags().GetBool("publish")
+	skipValidate, _ := cmd.Flags().GetBool("skip-validate")
 
 	// Resolve source
 	var source string
@@ -60,6 +62,25 @@ func runUpload(cmd *cobra.Command, args []string) error {
 		source = args[0]
 	} else {
 		source = config.ResolveSource("", cfg)
+	}
+
+	// Pre-upload validation
+	if !skipValidate {
+		output.Info("Validating...")
+		results := runValidationChecks(cmd, cfg, source, false)
+		failures := 0
+		for _, r := range results {
+			if !r.Passed {
+				output.Info("  x %s", r.Message)
+				failures++
+			}
+		}
+		if failures > 0 {
+			output.Hint("To upload without validation, use --skip-validate")
+			return fmt.Errorf("cws validate failed: %d issue(s) found", failures)
+		}
+		output.Info("Validation passed!")
+		fmt.Println()
 	}
 
 	// Prepare zip data
@@ -91,11 +112,7 @@ func runUpload(cmd *cobra.Command, args []string) error {
 	}
 
 	if resp.UploadState == "FAILURE" {
-		errMsg := "Upload failed"
-		if len(resp.ItemError) > 0 {
-			errMsg += ": " + resp.ItemError[0].ErrorDetail
-		}
-		return fmt.Errorf("%s", errMsg)
+		return api.NewCWSError("upload", 0, resp.ItemError, "upload processing failed")
 	}
 
 	if resp.UploadState == "UPLOAD_IN_PROGRESS" {
@@ -205,7 +222,5 @@ func waitForUpload(ctx context.Context, client *api.Client, extensionID string, 
 	}
 
 	output.Progress("\n")
-	output.Error("Timed out waiting for upload processing after %d seconds", timeoutSec)
-	os.Exit(2)
-	return nil, nil // unreachable
+	return nil, fmt.Errorf("timed out waiting for upload processing after %d seconds", timeoutSec)
 }

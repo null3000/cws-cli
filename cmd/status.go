@@ -88,6 +88,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		output.Info("Errors:")
 		for _, e := range resp.ItemError {
 			output.Info("  - [%s] %s", e.ErrorCode, e.ErrorDetail)
+			if hint := api.HintForItemError(e.ErrorCode); hint != "" {
+				output.Hint("%s", hint)
+			}
 		}
 	}
 
